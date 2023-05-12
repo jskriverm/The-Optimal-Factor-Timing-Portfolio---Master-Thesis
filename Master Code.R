@@ -38,14 +38,12 @@ library(rmgarch)
 library(roll)
 library(xtable)
 
-# Set working Directory
-
-setwd("C:/Users/jakob/OneDrive/Copenhagen Business School/Finance & Investments Year 1/Master Preparation")
+# All Data is read in from the GitHub-locations
 
 ## Analysis for 4.1
 
 # Loading in Monthly FF data and getting all data in percentage terms.
-monthly = read.csv('MonthlyFF.csv')
+monthly = read.csv(url('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/MonthlyFF.csv'))
 monthly$month = floor_date(ymd(str_c(monthly$month,'01')),'month')
 monthly = monthly%>%
   mutate(across(where(is.numeric),~ . / 100))
@@ -54,18 +52,18 @@ monthly = monthly%>%
 monthly$BAB=monthly$BAB-monthly$RF
 
 # Loading in Daily FF and rate data modelling it to percentages and adjusting BAB
-daily = read.csv('FactorsDaily.csv')
+daily = read.csv(url('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/FactorsDaily.csv'))
 daily = drop_na(daily)
 daily<-transform(daily,date=as.Date(as.character(date),"%Y%m%d"))
 daily = daily%>%
   mutate(across(where(is.numeric),~ . / 100))
 
 # Load in the AQR Data
-Quality = read.csv('QualityFactor.csv')
+Quality = read.csv('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/QualityFactor.csv')
 Quality<-transform(Quality,date = as.Date(as.character(date), '%m/%d/%Y'))
-BAB = read.csv('BAB.csv')
+BAB = read.csv('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/BAB.csv')
 BAB<-transform(BAB,date = as.Date(as.character(date), '%m/%d/%Y'))
-R_free = read.csv('Risk_Free_Daily.csv')
+R_free = read.csv('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/Risk_Free_Daily.csv')
 R_free<-transform(R_free,date=as.Date(as.character(date),"%Y%m%d"))
 R_free$RF = R_free$RF/100
 daily = merge(daily, Quality, by = 'date')
@@ -78,7 +76,7 @@ daily$BAB=daily$BAB-daily$RF
 daily$Quarter = as.yearqtr(daily$date)
 daily$month = as.yearmon(daily$date)
 
-# Create Figure 1:
+# Create Figure 1.1:
 plot(daily$date[252:NROW(daily)],rollmean(daily$HML, 252), type = 'l', ylab = 'Daily Excess Return', xlab = 'Date', main = 'Rolling 252-day Excess Return on the Value Factor')
 
 # Throughout this analysis we will use both total and excess return. Hence, we create a dataframe called "daily_full" for the total return
@@ -86,7 +84,7 @@ plot(daily$date[252:NROW(daily)],rollmean(daily$HML, 252), type = 'l', ylab = 'D
 
 # Generate Basic summary statistics for daily and monthly excess returns
 
-sumstats = matrix(nrow = 7, ncol = 8)
+sumstats = matrix(nrow = 8, ncol = 8)
 
 for (i in 2:9){
   sumstats[1,i-1]=mean(daily[,i])*100
@@ -96,13 +94,13 @@ for (i in 2:9){
   sumstats[5,i-1] = mean(daily[,i])/sd(daily[,i])
   sumstats[6,i-1] = lm(data = daily, daily[,i] ~ Mkt.RF)[[1]][1]*100
   sumstats[7,i-1] = lm(data = daily, daily[,i] ~ Mkt.RF)[[1]][2]
+  sumstats[8,i-1] = t.test(daily[,i])[[1]]
   sumstats = round(sumstats, 4)
 }
-
-
 col_names = list('Market', 'Size', 'Value', 'Earnings', 'Investment', 'Momentum', 'Quality', 'BAB')
-rownames(sumstats) = c('Ex. Ret (%)', 'Std. Dev. (%)', 'Skewness', 'Kurtosis', 'Sharpe', 'CAPM Alpha (%)', 'CAPM Beta')
+rownames(sumstats) = c('Ex. Ret (%)', 'Std. Dev. (%)', 'Skewness', 'Kurtosis', 'Sharpe', 'CAPM Alpha (%)', 'CAPM Beta', 'T-test')
 colnames(sumstats) = col_names
+# Throughout, I use the xtable function to export the results directly to LaTeX.
 print(xtable(sumstats, type = 'latex', caption = 'Summary Statistics of Daily Returns on Factors, Jul 1st, 1963 - Nov 30, 2022', digits = 3))
 ## Correlation Analysis of Excess Returns
 # Constant correlation
@@ -126,20 +124,20 @@ legend('topleft',legend = c('Size-Value', 'Value-Momentum', 'Quality-Value'), co
 
 ## Analysis 4.1.1 Performance Across Business Cycles
 # Read in OECD data, clean it, and create the indicator.
-OECD = read.csv('OECD.csv')
+OECD = read.csv('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/OECD.csv')
 OECD$month = as.Date(paste(OECD$TIME, "-01", sep=""))
 OECD$Delta = (OECD$OECD_Indicator - dplyr::lag(OECD$OECD_Indicator))/OECD$OECD_Indicator
 OECD$OECD_econstage = ifelse(OECD$OECD_Indicator<100 & OECD$Delta<0, 'Downturn', ifelse(OECD$OECD_Indicator>100 & OECD$Delta<0, "Slowdown", ifelse(OECD$OECD_Indicator>100 & OECD$Delta>0, "Expansion", "Recovery")))
 OECD = subset(OECD, select = -c(TIME, OECD_Indicator, Delta))
 # Load in NBER Data, with already classified busines-cycle-stages.
 
-NBER = read.csv('NBER Recessions.csv')
+NBER = read.csv('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/NBER%20Recessions.csv')
 NBER$month = as.Date(NBER$DATE, "%d/%m/%Y")
 NBER = subset(NBER, select = -c(USREC, DATE))
 
 # Loading in GDP data (quarterly)
 
-GDP = read.csv('GDP.csv')
+GDP = read.csv('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/GDP.csv')
 GDP$DATE = as.Date(GDP$DATE, "%d/%m/%Y")
 # To construct the GDP variable indicator per Ilmanen et al (2021) I calculate the yearOverYear change as well as change in growth
 GDP = GDP %>% group_by(month=month(DATE)) %>%
@@ -285,7 +283,7 @@ names(macro_predictors)[names(macro_predictors) == "cpi_growth"] <- "infl"
 
 # Read in the sentiment index (Wurgler, 2023) and merge it onto the predictor data from before
 
-Sentiment = read.csv('Sentiment.csv')
+Sentiment = read.csv(url('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/Sentiment.csv'))
 Sentiment$month = as.Date(as.character(paste(Sentiment$Date, "01", sep="")), format = '%Y%m%d')
 Sentiment = subset(Sentiment,select = -c(Date))
 macro_predictors = merge(macro_predictors, Sentiment, by = 'month')
@@ -355,7 +353,7 @@ reg_fit_bab = lm(monthlyMerged$BAB ~ dplyr::lag(monthlyMerged$Sentiment_Index)+d
 NW_VCOV<-NeweyWest(reg_fit_bab,lag=m-1,prewhite = F,adjust = T)
 reg_data_bab = coeftest(reg_fit_bab,vcov=NW_VCOV)
 
-# Now we can collect the regressions and collect them in a table using LaTex
+# Now we can collect the regressions and collect them in a table using LaTeX
 
 my_models = list(reg_data_val, reg_data_size, reg_data_inv, reg_data_earn, reg_data_mom, reg_data_qual, reg_data_bab)
 stargazer(my_models, title = 'Regressions', type = 'html', out = 'training output', keep.stat = 'rsq')
@@ -528,7 +526,7 @@ star = stargazer(my_models,
 cat(star, sep = '\n', file = 'GDP.tex')
 
 
-# Then the contemporaneous regressions are done
+# Then the contemporaneous regressions
 ## NBER regressions, contemporaneous
 
 reg_fit_mom = lm(monthlyMerged$mom ~ monthlyMerged$Sentiment_Index+monthlyMerged$dp+monthlyMerged$ep+
@@ -797,8 +795,8 @@ equal_rets_full = equal_rets + daily$RF
 
 ## Calc the out of sample portfolio
 
-cutoff = as.Date('2013-06-30')
-
+cutoff = as.Date('2013-06-30') # Set cutoff date for in-sample. All after this date will be out-of-sample.
+# Define function to calculate the out-of-sample performance and portfolio
 oos_function = function(cutoff){
   in_sample = daily[daily$date<=cutoff,]
   out_of_sample = daily[daily$date>cutoff,]
@@ -825,19 +823,19 @@ oos_function = function(cutoff){
   return(out_of_sample)
 }
 
+# Get the out-of-sample portfolio
+
 out_of_sample = oos_function(cutoff)
 
-dates = daily$date
-
 # Show Weights Table
-
+dates = daily$date
 mv_weights = cbind(tangency, t(out_of_sample[1,13:20]))
 rownames(mv_weights) = c('Market', 'Size', 'Value', 'Earnings', 'Investment', 'Momentum', 'Quality', 'BAB')
 colnames(mv_weights) = c('Naive Tangency', 'In Sample Tangency')
 print(xtable(mv_weights, caption = 'Naive Tangency Weights', digits = 3))
 
 
-# Show statistics
+# Show statistics of performance of the naive tangency portfolio and out-of-sample tangency portfolio
 
 ind_matrix = matrix(nrow = 8, ncol = 4)
 ind_matrix[1,1] = round((tail(cumprod(1+equal_rets_full), 1)^(1/n_distinct(daily$month))-1)*100,4)
@@ -880,7 +878,7 @@ colnames(ind_matrix) = c('Equal Full Period', 'Naive Tangency Full Period', 'OOS
 print(xtable(ind_matrix, caption = 'Performance Metrics of the Equal-Weighted and Naive Tangency Portfolio', digits = c(3)))
 
 
-# Plot the Frontier
+# Plot the Efficient Frontier of the assets
 
 
 ## Amending the function of Zivot (2019) in the IntroCompFinR package.
@@ -1292,7 +1290,7 @@ ind_matrix[7,8] = round(lm(mkt_inv_rets~ daily$Mkt.RF[253:NROW(daily)])[[1]][2],
 ind_matrix[8,8] = round(round(lm(mkt_inv_rets ~ daily$Mkt.RF[253:NROW(daily)])[[1]][1],4)/(sd(mkt_inv_rets)-sd(daily$Mkt.RF[253:NROW(daily)])*lm(mkt_inv_rets ~ daily$Mkt.RF[253:NROW(daily)])[[1]][2]),4)
 
 rownames(ind_matrix) = stat_names
-colnames(ind_matrix) = c('Eq. Weight', 'Roll. Cap 1', 'Exp. Cap 1', 'Exp. Cap 2', 'Roll. Cap 2', 'Exp. Cap 5', 'Roll. Cap 5', 'Market')
+colnames(ind_matrix) = c('Equal', 'Roll 1', 'Exp 1', 'Exp 2', 'Roll 2', 'Exp 5', 'Roll 5', 'Market')
 
 print(xtable(ind_matrix, caption = 'Performance Metrics of the Time-adjusted Mkt-Factor Portfolios', digits = 3))
 
@@ -1356,13 +1354,8 @@ colnames(ind_matrix) = c('Lag. TAA Business Cycle Factor-tilt', 'Roll. Cap 0.3')
 
 print(xtable(ind_matrix, caption = 'Performance Metrics of the Time-adjusted Mkt-Factor Portfolios', digits = 3))
 
-
-
-
-
 ## Plot weights over time, no shorts vs. two market portfolios
 dates = mkt_factor_expanding_capped2$date
-
 plot(dates, mkt_factor_rolling_capped2$Value, type = 'l', col = 'red', ylab = 'Weight on Value Factor', main = 'Time-varying Weight on the Value Factor in Portfolios')
 lines(dates, mkt_factor_expanding_capped2$Value, type = 'l')
 legend('topright', c('Expanding', 'Rolling'), lty = 1, col = c('black', 'red'))
@@ -1380,7 +1373,7 @@ lines(dates, mkt_factor_expanding_capped2$Investment, type = 'l')
 legend('bottomleft', c('Expanding', 'Rolling'), lty = 1, col = c('black', 'red'))
 
 ### Regressions of the Factor Weights on the Lagged Economic Variables ###
-# Regression of the factor-market portfolios - Rolling Portfolio
+# Regression of the weights of the factor-tilt portfolios - Rolling Portfolio
 colnames(market_weight_capped2) = c('Market', 'Size', 'Value', 'Earnings', 'Investment', 'Momentum', 'Quality', 'BAB')
 market_weight_capped2 = as.data.frame(market_weight_capped2)
 market_weight_capped2$month = months
@@ -1454,7 +1447,7 @@ star = stargazer(my_models,
 
 cat(star, sep = '\n', file = 'OECD_Weights_Mkt_Factor_Unconstrained.tex')
 
-# Regression of the factor-market portfolios - Expanding Portfolio
+# Regression of the weights of the factor-tilt portfolios - Expanding Portfolio
 colnames(market_weight_expanding_capped2) = c('Market', 'Size', 'Value', 'Earnings', 'Investment', 'Momentum', 'Quality', 'BAB')
 market_weight_expanding_capped2 = as.data.frame(market_weight_expanding_capped2)
 market_weight_expanding_capped2$month = months
@@ -1528,8 +1521,6 @@ star = stargazer(my_models,
 
 cat(star, sep = '\n', file = 'OECD_Weights_Mkt_Factor_Expanding.tex')
 
-
-## Prediction of the Weights
 
 
 ## Appendix XIV Predicting Weights Based on Regressions ##
@@ -1768,7 +1759,7 @@ lines(mean_var_rolling$date, mean_var_expanding$Value, lty = 2, type = 'l', col 
 legend('bottomleft', c('Rolling Reg. Rolling Weight', 'Mean Variance Rolling Weight', 'Rolling Reg. Expanding Weight', 'Mean Variance Expanding Weight'), lty = c(1,1,2,2), col = c('black', 'red', 'green', 'grey') )
 
 
-# Regression of returns and predictions on macroeconomic factors
+# Regression of returns and predictions on macroeconomic factors. Start with 84 months to match the regression and prediction of weights
 
 return_predictions = matrix(nrow = 677, ncol = 8)
 for (i in 1:677){
@@ -1815,67 +1806,65 @@ return_predictions$month = monthlyMerged$month[86:NROW(monthlyMerged)]
 return_predictions = return_predictions[192:NROW(return_predictions),]
 
 
-## Regression with 299 prediction months to fit the monthly GARCH models.
-return_predictions_300 = matrix(nrow = 677, ncol = 8)
+## Regression with 275 prediction months to fit the monthly GARCH models.
+return_predictions_275 = matrix(nrow = 677, ncol = 8)
 for (i in 1:677){
-  return_predictions_300[i,1]=rollRegres::roll_regres(formula = Mkt.RF[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
+  return_predictions_275[i,1]=rollRegres::roll_regres(formula = Mkt.RF[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
                                                       +na.omit(dplyr::lag(infl))+na.omit(dplyr::lag(OECD_econstage_Expansion))+na.omit(dplyr::lag(OECD_econstage_Slowdown))
                                                       +na.omit(dplyr::lag(OECD_econstage_Recovery))+na.omit(dplyr::lag(Mkt.RF)), data = monthlyMerged, min_obs = 275, width = 275, do_downdates = T, do_compute = '1_step_forecasts')$one_step_forecasts[[i]]
   
-    return_predictions_300[i,2]=rollRegres::roll_regres(formula = SMB[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
+  return_predictions_275[i,2]=rollRegres::roll_regres(formula = SMB[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
                                                   +na.omit(dplyr::lag(infl))+na.omit(dplyr::lag(OECD_econstage_Expansion))+na.omit(dplyr::lag(OECD_econstage_Slowdown))
                                                   +na.omit(dplyr::lag(OECD_econstage_Recovery))+na.omit(dplyr::lag(Mkt.RF)+dplyr::lag(SMB)), data = monthlyMerged, min_obs = 275, width = 275, do_downdates = T, do_compute = '1_step_forecasts')$one_step_forecasts[[i]]
   
-  return_predictions_300[i,3]=rollRegres::roll_regres(formula = HML[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
+  return_predictions_275[i,3]=rollRegres::roll_regres(formula = HML[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
                                                   +na.omit(dplyr::lag(infl))+na.omit(dplyr::lag(OECD_econstage_Expansion))+na.omit(dplyr::lag(OECD_econstage_Slowdown))
                                                   +na.omit(dplyr::lag(OECD_econstage_Recovery))+na.omit(dplyr::lag(Mkt.RF)+dplyr::lag(HML)), data = monthlyMerged, min_obs = 275, width = 275, do_downdates = T, do_compute = '1_step_forecasts')$one_step_forecasts[[i]]
   
-  return_predictions_300[i,4]=rollRegres::roll_regres(formula = mom[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
+  return_predictions_275[i,4]=rollRegres::roll_regres(formula = mom[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
                                                   +na.omit(dplyr::lag(infl))+na.omit(dplyr::lag(OECD_econstage_Expansion))+na.omit(dplyr::lag(OECD_econstage_Slowdown))
                                                   +na.omit(dplyr::lag(OECD_econstage_Recovery))+na.omit(dplyr::lag(Mkt.RF)+dplyr::lag(mom)), data = monthlyMerged, min_obs = 275, width = 275, do_downdates = T, do_compute = '1_step_forecasts')$one_step_forecasts[[i]]
   
-  return_predictions_300[i,5]=rollRegres::roll_regres(formula = CMA[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
+  return_predictions_275[i,5]=rollRegres::roll_regres(formula = CMA[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
                                                   +na.omit(dplyr::lag(infl))+na.omit(dplyr::lag(OECD_econstage_Expansion))+na.omit(dplyr::lag(OECD_econstage_Slowdown))
                                                   +na.omit(dplyr::lag(OECD_econstage_Recovery))+na.omit(dplyr::lag(Mkt.RF)+dplyr::lag(CMA)), data = monthlyMerged, min_obs = 275, width = 275, do_downdates = T, do_compute = '1_step_forecasts')$one_step_forecasts[[i]]
   
-  return_predictions_300[i,6]=rollRegres::roll_regres(formula = RMW[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
+  return_predictions_275[i,6]=rollRegres::roll_regres(formula = RMW[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
                                                   +na.omit(dplyr::lag(infl))+na.omit(dplyr::lag(OECD_econstage_Expansion))+na.omit(dplyr::lag(OECD_econstage_Slowdown))
                                                   +na.omit(dplyr::lag(OECD_econstage_Recovery))+na.omit(dplyr::lag(Mkt.RF)+dplyr::lag(RMW)), data = monthlyMerged, min_obs = 275, width = 275, do_downdates = T, do_compute = '1_step_forecasts')$one_step_forecasts[[i]]
   
-  return_predictions_300[i,7]=rollRegres::roll_regres(formula = Quality[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
+  return_predictions_275[i,7]=rollRegres::roll_regres(formula = Quality[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
                                                   +na.omit(dplyr::lag(infl))+na.omit(dplyr::lag(OECD_econstage_Expansion))+na.omit(dplyr::lag(OECD_econstage_Slowdown))
                                                   +na.omit(dplyr::lag(OECD_econstage_Recovery))+na.omit(dplyr::lag(Mkt.RF)+dplyr::lag(Quality)), data = monthlyMerged, min_obs = 275, width = 275, do_downdates = T, do_compute = '1_step_forecasts')$one_step_forecasts[[i]]
   
-  return_predictions_300[i,8]=rollRegres::roll_regres(formula = BAB[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
+  return_predictions_275[i,8]=rollRegres::roll_regres(formula = BAB[2:678] ~ na.omit(dplyr::lag(Sentiment_Index))+na.omit(dplyr::lag(svar))+na.omit(dplyr::lag(lty))+na.omit(dplyr::lag(dfy))
                                                   +na.omit(dplyr::lag(infl))+na.omit(dplyr::lag(OECD_econstage_Expansion))+na.omit(dplyr::lag(OECD_econstage_Slowdown))
                                                   +na.omit(dplyr::lag(OECD_econstage_Recovery))+na.omit(dplyr::lag(Mkt.RF)+dplyr::lag(BAB)), data = monthlyMerged, min_obs = 275, width = 275, do_downdates = T, do_compute = '1_step_forecasts')$one_step_forecasts[[i]]
   
 }
 
-return_predictions_300 = as.data.frame(return_predictions_300[!rowSums(!is.finite(return_predictions_300)),])
-colnames(return_predictions_300)= c('Mkt.RF', 'SMB', 'HML', 'RMW', 'CMA', 'mom', 'Quality', 'BAB')
+return_predictions_275 = as.data.frame(return_predictions_275[!rowSums(!is.finite(return_predictions_275)),])
+colnames(return_predictions_275)= c('Mkt.RF', 'SMB', 'HML', 'RMW', 'CMA', 'mom', 'Quality', 'BAB')
 
-return_predictions_300$month = monthlyMerged$month[277:NROW(monthlyMerged)]
-return_predictions$month
-return_predictions$HML
+return_predictions_275$month = monthlyMerged$month[277:NROW(monthlyMerged)]
 plot(return_predictions$month, monthlyMerged$HML[277:NROW(monthlyMerged)], type = 'l', xlab = 'Date', ylab = 'Return on the Value Factor', main = 'Return on Value Factor, Actual vs. Reg. Forecasts')
 lines(return_predictions$month,return_predictions$HML, type = 'l', col = 'red' )
-lines(return_predictions_300$month, return_predictions_300$HML, type = 'l', col = 'blue')
+lines(return_predictions_275$month, return_predictions_275$HML, type = 'l', col = 'blue')
 legend('bottomleft', c('Actual', 'Prediction w. 84 obs', 'Prediction w. 275 obs'), lty = 1, col = c('black', 'red', 'blue'))
 
-## Correlations
+## Calculate the correlations of the predicted returns with the actual returns
 
 ret_corr = matrix(nrow = 8, ncol = 2)
 k=1
 
 for (i in c('Mkt.RF', 'SMB', 'HML', 'RMW', 'CMA', 'mom', 'Quality', 'BAB')){
   ret_corr[k,1]=cor(monthlyMerged[[i]][277:NROW(monthlyMerged)], return_predictions[[i]])
-  ret_corr[k,2]=cor(monthlyMerged[[i]][277:NROW(monthlyMerged)], return_predictions_300[[i]])
+  ret_corr[k,2]=cor(monthlyMerged[[i]][277:NROW(monthlyMerged)], return_predictions_275[[i]])
   k=k+1
 }
 
 rownames(ret_corr) = c('Market', 'Size', 'Value', 'Investment', 'Earnings', 'Momentum', 'Quality', 'BAB')
-colnames(ret_corr) = c('Prediction w. 84 obs', 'Prediction w. 299 obs')
+colnames(ret_corr) = c('Prediction w. 84 obs', 'Prediction w. 275 obs')
 
 print(xtable(ret_corr, caption = 'Correlation Reg. Pred Rets vs. Actual Rets', digits = 3))
 
@@ -2047,8 +2036,8 @@ for (s in unique(dailyMerged$OECD_econstage)){
 ## 4.3.2.4 Individual Long-Short Factor Portfolios ##
 # Read in the return data for the Individual Factor Portfolios
 
-individual_factors = read.csv('FactorsIndividual.csv')
-univariate_factors = read.csv('FactorsUnivariate.csv')
+individual_factors = read.csv(url('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/FactorsIndividual.csv'))
+univariate_factors = read.csv(url('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/FactorsUnivariate.csv'))
 
 # Clean the returns so I can use them
 ## Further, to make the time-series comparable to the 4.3.2.2 and 4.3.2.1, the data is capped at Nov. 30th, 2022. 
@@ -2311,7 +2300,7 @@ print(xtable(ind_matrix, caption = ' Performance of Individual Factor Portfolios
 ### 4.4 Including Transaction Costs ###
 # Loading the transaction costs from Novy-Marx & Velikov (2016)
 first_dates = daily[!duplicated(daily$month),][1] # Generating a list of the first trading days in each month. This is needed for merging the transaction costs. 
-TransCosts = read.csv('TransCosts.csv') # Read in the data
+TransCosts = read.csv(url('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/TransCosts.csv')) # Read in the data
 TransCosts$date = first_dates$date # Assuming that each day where transaction costs are paid is the first trading day of the month.
 TransCosts = TransCosts%>%
   mutate(across(where(is.numeric),~ . / 100))
@@ -2507,12 +2496,12 @@ print(xtable(ind_matrix, caption = 'Performance of Market-Factor Portfolios afte
 
 ### 4.5 Analysis of Available Factor ETFs and their replication ###
 # Read in the price data of the ETFs
-SizeETF = read.csv('SizeFactorETF.csv')
-ValueETF = read.csv('ValueFactorETF.csv')
-MomentumETF = read.csv('MomentumFactorETF.csv')
-QualityETF=read.csv('QualityFactorETF.csv')
-LowBetaETF = read.csv('LowBetaETF.csv')
-MarketETF = read.csv('MarketETF.csv')
+SizeETF = read.csv(url('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/SizeFactorETF.csv'))
+ValueETF = read.csv(url('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/ValueFactorETF.csv'))
+MomentumETF = read.csv(url('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/MomentumFactorETF.csv'))
+QualityETF=read.csv(url('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/QualityFactorETF.csv'))
+LowBetaETF = read.csv(url('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/LowBetaETF.csv'))
+MarketETF = read.csv(url('https://raw.githubusercontent.com/jskriverm/The-Optimal-Factor-Timing-Portfolio---Master-Thesis/master/MarketETF.csv'))
 # Analyzing average return and correlation with the factors considered
 ## Calculate returns from the prices and merge it onto the dataframe of the daily returns.
 calculate_return <- function(df) {
@@ -2588,26 +2577,24 @@ rownames(comp_matrix) = c('Mean Daily ETF Ret (%)', 'Mean Daily Factor Ret (%)',
 colnames(comp_matrix) = c('Size', 'Value', 'Momentum', 'Quality', 'BAB', 'Market')
 print(xtable(comp_matrix, caption = 'Comparison of ETFs with Factors', digits = 3))
 
-
-
 ### 4.6 Predicting Returns and Volatility via GARCH ###
 
 # Check for stationarity
-df_table = matrix(nrow=7, ncol = 1)
+df_table = matrix(nrow=8, ncol = 1)
 library(tseries)
-df_table[1,1]=adf.test(daily$SMB)[[1]]
-df_table[2,1]=adf.test(daily$HML)[[1]]
-df_table[3,1]=adf.test(daily$RMW)[[1]]
-df_table[4,1]=adf.test(daily$CMA)[[1]]
-df_table[5,1]=adf.test(daily$Momentum)[[1]]
-df_table[6,1]=adf.test(daily$Quality)[[1]]
-df_table[7,1]=adf.test(daily$BAB)[[1]]
+df_table[1,1] = adf.test(daily$Mkt.RF)[[1]]
+df_table[2,1]=adf.test(daily$SMB)[[1]]
+df_table[3,1]=adf.test(daily$HML)[[1]]
+df_table[4,1]=adf.test(daily$RMW)[[1]]
+df_table[5,1]=adf.test(daily$CMA)[[1]]
+df_table[6,1]=adf.test(daily$Momentum)[[1]]
+df_table[7,1]=adf.test(daily$Quality)[[1]]
+df_table[8,1]=adf.test(daily$BAB)[[1]]
 df_table = round(df_table,4)
 colnames(df_table) = 'Dickey-Fuller Statistic'
-rownames(df_table) = c('Size', 'Value', 'Earnings', 'Investment', 'Momentum', 'Quality', 'BAB')
+rownames(df_table) = c('Market','Size', 'Value', 'Earnings', 'Investment', 'Momentum', 'Quality', 'BAB')
 
 print(xtable(df_table, caption = 'Dickey-Fuller Tests for Stationarity', digits = 3))
-
 # Specify the models
 
 model1=ugarchspec(mean.model = list(armaOrder=c(2,0)), variance.model = list(garchOrder=c(1,1), model = 'gjrGARCH'), distribution.model = 'norm') # Univariate GARCH specification for the DCC-GARCH
@@ -2618,18 +2605,17 @@ multispec = dccspec(uspec = multispec(replicate(8, model1)), dccOrder = c(1,1), 
 
 # Daily GO-GARCH
 
-#gogarch = gogarchroll(spec = gspec, data = daily[2:9]%>%
-                          #as.matrix,
-                              #n.ahead = 1,
-                              #forecast.length = 13703, 
-                              #refit.every = 1, 
-                              #refit.window = 'moving', 
-                              #solver = "hybrid") # Estimation of the rolling GOGARCH(1,1)
-
-gogarch = readRDS('garchtest.RDS')
+gogarch = gogarchroll(spec = gspec, data = daily[2:9]%>%
+                          as.matrix,
+                              n.ahead = 1,
+                              forecast.length = 13703, 
+                              refit.every = 1, 
+                              refit.window = 'moving', 
+                              solver = "hybrid") # Estimation of the rolling GOGARCH(1,1) 
+# This estimation takes the better part of 17hrs(on my ThinkPad with 16gb ram), wherefore running it and coming to the GARCH-portfolios requires a bit of patience :)
 
 # Calculate the daily estimates of the covariance and means for the daily GO-GARCH
-cov_gogarch = rcov(gogarch)
+cov_gogarch = rcov(gogarch) # This takes the better part of an hour to run.
 mu_gogarch = fitted(gogarch)
 
 
@@ -2711,7 +2697,7 @@ garchmonthly = gogarchroll(spec = gspec, data = monthly[2:9]%>%
                         forecast.length = 415, 
                         refit.every = 1, 
                         refit.window = 'moving', 
-                        solver = "hybrid")
+                        solver = "hybrid") # This takes 2 hrs to run
 
 
 garchmonthly_expanding = gogarchroll(spec = gspec, data = monthly[2:9]%>%
@@ -2720,7 +2706,7 @@ garchmonthly_expanding = gogarchroll(spec = gspec, data = monthly[2:9]%>%
                            forecast.length = 415, 
                            refit.every = 1, 
                            refit.window = 'recursive', 
-                           solver = "hybrid")
+                           solver = "hybrid") # This takes another 2 hrs
 
 ## DCC Monthly Test
 
@@ -2728,24 +2714,23 @@ dccmonthly = dccroll(spec = multispec, data = monthly[2:9],
                      n.ahead = 1,
                      forecast.length = 415,
                      refit.every = 1,
-                     refit.window = 'moving')
+                     refit.window = 'moving') # And this takes another 2 hrs
 
 
 
 # Get the means and covariances from the models
 ## DCC.model
-
 cov_monthly_DCC = rcov(dccmonthly, output = 'array')
 mu_monthly_DCC = as.data.frame(fitted(dccmonthly))
 rownames(mu_monthly_DCC)=monthly$month[301:NROW(monthly)]
 ## Monthly rolling GO-GARCH
 cov_monthly = rcov(garchmonthly, output = 'array')
-cov_monthly[,,14]=cov_monthly[,,13]
+cov_monthly[,,14]=cov_monthly[,,13] # The estimate for the 14th month does not converge. Hence, to avoid missing values, I assume that it is equal to the 13th month.
 mu_monthly = as.data.frame(fitted(garchmonthly))
 rownames(mu_monthly)=monthly$month[301:NROW(monthly)]
 ## Monthly Expanding GO-GARCH
 cov_monthly_expanding = rcov(garchmonthly_expanding, output = 'array')
-cov_monthly_expanding[,,5]=cov_monthly[,,4]
+cov_monthly_expanding[,,5]=cov_monthly[,,4] # The estimate for the 5th month does not converge. Hence, to avoid missing values, I assume that it is equal to the 4th month.
 mu_monthly_expanding = as.data.frame(fitted(garchmonthly_expanding))
 rownames(mu_monthly_expanding) = monthly$month[301:NROW(monthly)]
 
@@ -2797,10 +2782,10 @@ for (i in 1:402){
   garch_weights_monthly_DCC_reg[i,2:8]=optim(par = var_weights, fn = SharpeFunction, Sigmas = as.matrix(cov_monthly_DCC[,,i]), mus =t(as.matrix(as.numeric(return_predictions[i,1:8]))), control = list(fnscale=-1), lower = rep(-2,7), upper = rep(2,7), method = 'L-BFGS-B')$par
 }
 
-garch_weights_monthly_DCC_reg_275 = matrix(nrow=NROW(return_predictions_300), ncol = 8)
+garch_weights_monthly_DCC_reg_275 = matrix(nrow=NROW(return_predictions_275), ncol = 8)
 garch_weights_monthly_DCC_reg_275[,1] = 1
 for (i in 1:402){
-  garch_weights_monthly_DCC_reg_275[i,2:8]=optim(par = var_weights, fn = SharpeFunction, Sigmas = as.matrix(cov_monthly_DCC[,,i]), mus =t(as.matrix(as.numeric(return_predictions_300[i,1:8]))), control = list(fnscale=-1), lower = rep(-2,7), upper = rep(2,7), method = 'L-BFGS-B')$par
+  garch_weights_monthly_DCC_reg_275[i,2:8]=optim(par = var_weights, fn = SharpeFunction, Sigmas = as.matrix(cov_monthly_DCC[,,i]), mus =t(as.matrix(as.numeric(return_predictions_275[i,1:8]))), control = list(fnscale=-1), lower = rep(-2,7), upper = rep(2,7), method = 'L-BFGS-B')$par
 }
 
 # Throw the weights into a dataframe with the daily returns to calculate performance of the portfolio
@@ -3051,14 +3036,14 @@ garch_table_monthly_trans_DCC[garch_table_monthly_trans_DCC$date %in% first_date
 garch_table_monthly_trans_DCC[garch_table_monthly_trans_DCC$date %in% first_dates_monthly_garch$date,][22] = garch_table_monthly_trans_DCC[garch_table_monthly_trans_DCC$date %in% first_dates_monthly_garch$date,][22]-trans_costs_monthly_DCC-shorting_costs_monthly_DCC
 
 ## Monthly DCC w. reg.
-weight_chgs_monthly_DCC_reg = as.data.frame(1+monthly_rets)*garch_weights_monthly_DCC_reg_275[1:413,1:8]-dplyr::lag(garch_weights_monthly_DCC_reg_275[1:413,1:8])
-weight_chgs_monthly_DCC_reg[1,] = garch_weights_monthly_DCC_reg_275[1,1:8]
-trans_costs_monthly_DCC_reg = rowSums(abs(weight_chgs_monthly_DCC_reg)*0.002)
-shorting_costs_monthly_DCC_reg = rowSums(apply(garch_weights_monthly_DCC_reg_275[1:8], 2, function(x) ifelse(x < 0, abs(x)*0.0007, 0)))
+weight_chgs_monthly_DCC_reg_275 = as.data.frame(1+monthly_rets)*garch_weights_monthly_DCC_reg_275[1:413,1:8]-dplyr::lag(garch_weights_monthly_DCC_reg_275[1:413,1:8])
+weight_chgs_monthly_DCC_reg_275[1,] = garch_weights_monthly_DCC_reg_275[1,1:8]
+trans_costs_monthly_DCC_reg_275 = rowSums(abs(weight_chgs_monthly_DCC_reg_275)*0.002)
+shorting_costs_monthly_DCC_reg_275 = rowSums(apply(garch_weights_monthly_DCC_reg_275[1:8], 2, function(x) ifelse(x < 0, abs(x)*0.0007, 0)))
 
-garch_table_monthly_trans_DCC_reg = garch_table_monthly_DCC_reg_275
-garch_table_monthly_trans_DCC_reg[garch_table_monthly_trans_DCC_reg$date %in% first_dates_monthly_garch$date,][21] = garch_table_monthly_trans_DCC_reg[garch_table_monthly_trans_DCC_reg$date %in% first_dates_monthly_garch$date,][21]-trans_costs_monthly_DCC_reg-shorting_costs_monthly_DCC_reg
-garch_table_monthly_trans_DCC_reg[garch_table_monthly_trans_DCC_reg$date %in% first_dates_monthly_garch$date,][22] = garch_table_monthly_trans_DCC_reg[garch_table_monthly_trans_DCC_reg$date %in% first_dates_monthly_garch$date,][22]-trans_costs_monthly_DCC_reg-shorting_costs_monthly_DCC_reg
+garch_table_monthly_trans_DCC_reg_275 = garch_table_monthly_DCC_reg_275
+garch_table_monthly_trans_DCC_reg_275[garch_table_monthly_trans_DCC_reg_275$date %in% first_dates_monthly_garch$date,][21] = garch_table_monthly_trans_DCC_reg_275[garch_table_monthly_trans_DCC_reg_275$date %in% first_dates_monthly_garch$date,][21]-trans_costs_monthly_DCC_reg_275-shorting_costs_monthly_DCC_reg_275
+garch_table_monthly_trans_DCC_reg_275[garch_table_monthly_trans_DCC_reg_275$date %in% first_dates_monthly_garch$date,][22] = garch_table_monthly_trans_DCC_reg_275[garch_table_monthly_trans_DCC_reg_275$date %in% first_dates_monthly_garch$date,][22]-trans_costs_monthly_DCC_reg_275-shorting_costs_monthly_DCC_reg_275
 
 ## Monthly DCC w. reg.
 weight_chgs_monthly_DCC_reg_84 = as.data.frame(1+monthly_rets)*garch_weights_monthly_DCC_reg[1:413,1:8]-dplyr::lag(garch_weights_monthly_DCC_reg[1:413,1:8])
@@ -3070,8 +3055,6 @@ garch_table_monthly_trans_DCC_reg_84 = garch_table_monthly_DCC_reg
 garch_table_monthly_trans_DCC_reg_84[garch_table_monthly_trans_DCC_reg_84$date %in% first_dates_monthly_garch$date,][21] = garch_table_monthly_trans_DCC_reg_84[garch_table_monthly_trans_DCC_reg_84$date %in% first_dates_monthly_garch$date,][21]-trans_costs_monthly_DCC_reg_84-shorting_costs_monthly_DCC_reg_84
 garch_table_monthly_trans_DCC_reg_84[garch_table_monthly_trans_DCC_reg_84$date %in% first_dates_monthly_garch$date,][22] = garch_table_monthly_trans_DCC_reg_84[garch_table_monthly_trans_DCC_reg_84$date %in% first_dates_monthly_garch$date,][22]-trans_costs_monthly_DCC_reg_84-shorting_costs_monthly_DCC_reg_84
 
-
-
 ## Standard Monthly Backwards Looking Mean Variance
 backwards_est = mkt_factor_rolling_capped2[mkt_factor_rolling_capped2$date>as.Date('1988-06-30'),]
 weight_chgs_monthly = as.data.frame(1+monthly_rets)*market_weight_capped2[289:NROW(market_weight_capped2),1:8]-dplyr::lag(market_weight_capped2[289:NROW(market_weight_capped2),1:8])
@@ -3080,7 +3063,6 @@ trans_costs_monthly = rowSums(abs(weight_chgs_monthly)*0.002)
 shorting_costs_monthly = rowSums(apply(market_weight_capped2[289:690,1:8], 2, function(x) ifelse(x < 0, abs(x)*0.0007, 0)))
 backwards_est[backwards_est$date %in% first_dates_monthly_garch$date,][21] = backwards_est[backwards_est$date %in% first_dates_monthly_garch$date,][21]-trans_costs_monthly-shorting_costs_monthly
 backwards_est[backwards_est$date %in% first_dates_monthly_garch$date,][22] = backwards_est[backwards_est$date %in% first_dates_monthly_garch$date,][22]-trans_costs_monthly-shorting_costs_monthly
-
 
 # Consider the performance in the well-known performance metric
 ind_matrix = matrix(nrow = 8, ncol = 6)
@@ -3176,7 +3158,7 @@ ind_matrix[7,4] = round(lm(garch_table_monthly_trans_DCC_reg$pfret~ garch_table_
 ind_matrix[8,4] = round(lm(garch_table_monthly_trans_DCC_reg$pfret ~ garch_table_monthly_trans_DCC_reg$Mkt.RF)[[1]][1]/(sd(garch_table_monthly_trans_DCC_reg$pfret)-sd(garch_table_monthly_trans_DCC_reg$Mkt.RF)*lm(garch_table_monthly_trans_DCC_reg$pfret ~ garch_table_monthly_trans_DCC_reg$Mkt.RF)[[1]][2]),4)
 
 rownames(ind_matrix) = stat_names
-colnames(ind_matrix) = c('84 Obs wo TC', '299 Obs wo TC', '84 Obs w TC', '299 Obs w TC')
+colnames(ind_matrix) = c('84 Obs wo TC', '275 Obs wo TC', '84 Obs w TC', '275 Obs w TC')
 print(xtable(ind_matrix, caption = 'Performance of Reg. Est. Portfolios, With and Without Transaction Cost', digits = 3))
 
 
