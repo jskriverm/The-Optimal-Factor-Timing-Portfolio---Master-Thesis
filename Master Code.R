@@ -1,6 +1,6 @@
 #### Code for Master Thesis - "The Optimal Time-Varying Factor Portfolio" Jakob Skriver Matthisson - S127909. Copenhagen Business School ###
 
-# We clear the evironment to start fresh
+# We clear the environment to start fresh
 rm(list = ls())
 # Load in the needed packages
 library(dplyr)
